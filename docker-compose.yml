@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - .:/workspaces/ai-stock-app
+    ports:
+      - "3000:3000"
+    working_dir: /workspaces/ai-stock-app/frontend
+    command: npm run dev
+
+  data_agent:
+    build: ./backend/data_agent
+    ports:
+      - "8001:8001"
+  sentiment_agent:
+    build: ./backend/sentiment_agent
+    ports:
+      - "8002:8002"
+
