@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -13,9 +14,11 @@ export default function Home() {
           <p className="text-lg text-gray-600 mb-6">
             Get real-time predictions and investment suggestions for the Indian stock market.
           </p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full transition">
-            Get Started
-          </button>
+    <Link href="/sentiment">
+      <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full transition">
+        Get Started
+      </button>
+    </Link>
         </div>
       </main>
     </>

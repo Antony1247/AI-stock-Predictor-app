@@ -8,28 +8,47 @@ def analyze_sentiment(headlines):
             "sentiment": "neutral",
             "score": 5.0,
             "score_scale": "5/10",
-            "headlines": []
+            "headlines": [],
+            "headline_scores": []
         }
 
-    result = sentiment_model(headlines)
-    score_map = {"positive": 1, "neutral": 0, "negative": -1}
+    results = sentiment_model(headlines)
+    
+    headline_scores = []
+    for result in results:
+        label = result["label"].lower()
+        confidence = result["score"]
+        
+        # Convert each headline to 1-10 scale
+        if label == "positive":
+            # Positive: 6-10 based on confidence (0.5-1.0 → 6-10)
+            score = 6 + (confidence - 0.5) * 8  # Maps 0.5→6, 1.0→10
+        elif label == "negative":
+            # Negative: 1-5 based on confidence (0.5-1.0 → 1-5)
+            score = 5 - (confidence - 0.5) * 8  # Maps 0.5→5, 1.0→1
+        else:  # neutral
+            # Neutral: 4-6 based on confidence
+            score = 5 + (confidence - 0.5) * 2  # Maps 0.5→5, 1.0→6
+        
+        # Ensure score stays within 1-10 bounds
+        score = max(1, min(10, round(score, 2)))
+        headline_scores.append(score)
 
-    # Calculate average sentiment in [-1, 1]
-    raw_score = sum(score_map[r["label"].lower()] for r in result) / len(result)
-
-    # Scale to [0, 10]
-    scaled_score = round(((raw_score + 1) / 2) * 10, 2)
-
-    if scaled_score >= 7:
+    # Calculate overall average
+    avg_score = round(sum(headline_scores) / len(headline_scores), 2)
+    
+    # Determine overall sentiment
+    if avg_score >= 7:
         sentiment = "positive"
-    elif scaled_score <= 3:
+    elif avg_score <= 3:
         sentiment = "negative"
     else:
         sentiment = "neutral"
 
     return {
         "sentiment": sentiment,
-        "score": scaled_score,
-        "score_scale": f"{scaled_score}/10",
-        "headlines": headlines
+        "score": avg_score,
+        "score_scale": f"{avg_score}/10",
+        "headlines": headlines,
+        "headline_scores": headline_scores
     }
