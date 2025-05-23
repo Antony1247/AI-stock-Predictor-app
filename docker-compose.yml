@@ -11,12 +11,20 @@ services:
     working_dir: /workspaces/ai-stock-app/frontend
     command: npm run dev
 
+  ollama_news_sentiment:
+    build: ./backend/ollama_news_sentiment
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./backend/ollama_news_sentiment:/app
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
   data_agent:
     build: ./backend/data_agent
     ports:
       - "8001:8001"
-  sentiment_agent:
-    build: ./backend/sentiment_agent
-    ports:
-      - "8002:8002"
+  # sentiment_agent:
+  #   build: ./backend/sentiment_agent
+  #   ports:
+  #     - "8002:8002"
 
