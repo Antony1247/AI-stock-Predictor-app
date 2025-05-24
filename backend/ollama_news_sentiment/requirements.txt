@@ -1,4 +1,14 @@
 fastapi
 uvicorn
-ollama
+pydantic
 feedparser
+ollama
+yfinance
+requests
+httpx
+duckduckgo-search
+tqdm
+rich
+loguru
+agno
+sqlalchemy
