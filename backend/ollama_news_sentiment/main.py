@@ -40,8 +40,8 @@ if reports_dir.is_dir():
     rmtree(path=reports_dir, ignore_errors=True)
 reports_dir.mkdir(parents=True, exist_ok=True)
 stock_analyst_report = str(reports_dir.joinpath("stock_analyst_report.md"))
-# research_analyst_report = str(reports_dir.joinpath("research_analyst_report.md"))
-# investment_report = str(reports_dir.joinpath("investment_report.md"))
+research_analyst_report = str(reports_dir.joinpath("research_analyst_report.md"))
+investment_report = str(reports_dir.joinpath("investment_report.md"))
 
 class SentimentRequest(BaseModel):
     company: str
@@ -128,6 +128,85 @@ class InvestmentReportGenerator(Workflow):
         save_response_to_file=stock_analyst_report,
     )
 
+
+    research_analyst: Agent = Agent(
+        name="Research Analyst",
+        model=Ollama(id="llama3.2", client=OllamaClient()),
+        description=dedent("""\
+            You are ValuePro-X, an elite Senior Research Analyst at Goldman Sachs specializing in:
+
+            - Investment opportunity evaluation
+            - Comparative analysis
+            - Risk-reward assessment
+            - Growth potential ranking
+            - Strategic recommendations\
+        """),
+        instructions=dedent("""\
+            1. Investment Analysis 🔍
+            - Evaluate each company's potential
+            - Compare relative valuations
+            - Assess competitive advantages
+            - Consider market positioning
+            2. Risk Evaluation 📈
+            - Analyze risk factors
+            - Consider market conditions
+            - Evaluate growth sustainability
+            - Assess management capability
+            3. Company Ranking 🏆
+            - Rank based on investment potential
+            - Provide detailed rationale
+            - Consider risk-adjusted returns
+            - Explain competitive advantages\
+        """),
+        expected_output="Detailed investment analysis and ranking report in markdown format",
+        save_response_to_file=research_analyst_report,
+    )
+
+    investment_lead: Agent = Agent(
+        name="Investment Lead",
+        model=Ollama(id="llama3.2", client=OllamaClient()),
+        description=dedent("""\
+            You are PortfolioSage-X, a distinguished Senior Investment Lead at Goldman Sachs expert in:
+
+            - Portfolio strategy development
+            - Asset allocation optimization
+            - Risk management
+            - Investment rationale articulation
+            - Client recommendation delivery\
+            """),
+        instructions=dedent("""\
+            1. Portfolio Strategy 💼
+            - Develop allocation strategy
+            - Optimize risk-reward balance
+            - Consider diversification
+            - Set investment timeframes
+            2. Investment Rationale 📝
+            - Explain allocation decisions
+            - Support with analysis
+            - Address potential concerns
+            - Highlight growth catalysts
+            3. Recommendation Delivery 📊
+            - Present clear allocations
+            - Explain investment thesis
+            - Provide actionable insights
+            - Include risk considerations\
+        """),
+        save_response_to_file=investment_report,
+    )
+
+
+    # def generate_report(self, companies: str) -> Iterator[RunResponse]:
+    #     logger.info(f"Getting investment reports for companies: {companies}")
+    #     initial_report: RunResponse = self.stock_analyst.run(companies)
+    #     if initial_report is None or not initial_report.content:
+    #         yield RunResponse(
+    #             run_id=self.run_id,
+    #             content="Sorry, could not get the stock analyst report.",
+    #         )
+    #         return
+    #     yield initial_report
+
+
     def generate_report(self, companies: str) -> Iterator[RunResponse]:
         logger.info(f"Getting investment reports for companies: {companies}")
         initial_report: RunResponse = self.stock_analyst.run(companies)
@@ -137,11 +216,22 @@ class InvestmentReportGenerator(Workflow):
                 content="Sorry, could not get the stock analyst report.",
             )
             return
-        yield initial_report
 
+        logger.info("Ranking companies based on investment potential.")
+        ranked_companies: RunResponse = self.research_analyst.run(
+            initial_report.content
+        )
+        if ranked_companies is None or not ranked_companies.content:
+            yield RunResponse(
+                run_id=self.run_id, content="Sorry, could not get the ranked companies."
+            )
+            return
 
-# Print the response in the terminal
-# stock_analyst.print_response("talk about tcs stock news")
+        logger.info(
+            "Reviewing the research report and producing an investment proposal."
+        )
+        yield from self.investment_lead.run(ranked_companies.content, stream=True)
+
 
 
 @app.post("/analyze")
@@ -153,8 +243,18 @@ def analyze_sentiment(req: SentimentRequest):
             db_file="tmp/agno_workflows.db",
         ),
     )
-    result = next(workflow.generate_report(req.company))
+    
+    responses = []
+    for response in workflow.generate_report(req.company):
+        if response and response.content:
+            responses.append(response.content)
+
+    final_response_content = "\n".join(responses)
+
+    if not final_response_content:
+        return {"status": "error", "message": "Failed to generate complete report"}
+
     return {
-        "report": result.content,
+        "report": final_response_content,
         "status": "success",
     }
