@@ -16,25 +16,28 @@ export default function SentimentPage() {
     setResult(null)
 
     try {
-      const res = await fetch('http://localhost:8002/analyze', {
+      // First generate the report if needed
+      await fetch('http://localhost:8002/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ company }),
-      })
+      });
 
-      const data = await res.json()
-
-      if (!res.ok || !data.report) {
-        throw new Error(data.message || 'Failed to get report.')
+      // Then fetch the generated file
+      const fileRes = await fetch(`http://localhost:8002/get-report`);
+      
+      if (!fileRes.ok) {
+        throw new Error(await fileRes.text());
       }
 
-      setResult(data.report)
+      const fileContent = await fileRes.text();
+      setResult(fileContent);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong.')
+      setError(err.message || 'Something went wrong.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -60,11 +63,13 @@ export default function SentimentPage() {
 
       {error && <p className="text-red-600">{error}</p>}
 
-{result && (
-<div className="prose max-w-none bg-white dark:bg-gray-800 dark:text-gray-100 p-6 rounded shadow-lg">
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
-  </div>
-)}
+      {result && (
+        <div className="prose max-w-none bg-white dark:bg-gray-800 dark:text-gray-100 p-6 rounded shadow-lg">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {result}
+          </ReactMarkdown>
+        </div>
+      )}
     </div>
   )
 }

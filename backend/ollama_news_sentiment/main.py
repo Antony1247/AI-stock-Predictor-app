@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import ollama
 import re
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
 
 from agno.agent import Agent, RunResponse  # noqa
 from agno.models.ollama import Ollama
@@ -243,13 +245,14 @@ def analyze_sentiment(req: SentimentRequest):
             db_file="tmp/agno_workflows.db",
         ),
     )
-    
+
     responses = []
     for response in workflow.generate_report(req.company):
         if response and response.content:
-            responses.append(response.content)
+            cleaned = re.sub(r'\s+', ' ', response.content).strip()
+            responses.append(cleaned)
 
-    final_response_content = "\n".join(responses)
+    final_response_content = ' '.join(responses)
 
     if not final_response_content:
         return {"status": "error", "message": "Failed to generate complete report"}
@@ -258,3 +261,16 @@ def analyze_sentiment(req: SentimentRequest):
         "report": final_response_content,
         "status": "success",
     }
+
+
+@app.get("/get-report")
+async def get_report():
+    file_path = "reports/investment/stock_analyst_report.md"
+
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Report not found at {os.path.abspath(file_path)}"
+        )
+
+    return FileResponse(file_path, media_type='text/markdown')
